@@ -23,15 +23,15 @@ QTRSensors qtr;
 
 const uint8_t SensorCount = 8; //uint8_t stands for "unsigned integer with 8 bits.
 uint16_t sensorValues[SensorCount];
-const uint8_t pins[] = {3,4,5,6,A2,A3,A4,A5};
+const uint8_t pins[] = {3,4,5,6,13,A3,A4,A5};
 
 //QTR calibration test values
 const float maximum_calibration_required = 990;
 const float minimum_calibration_required = 10;
 
 //ultrasound
-#define trig 12
-#define echo 13
+#define trig 13
+#define echo A2
 
 //tcrt5000 IR_sensor
 #define IR_sensorR A0
@@ -86,7 +86,7 @@ void setup() {
 
     //configuration the pins of the IR sensors
     pinMode(IR_sensorL, INPUT);
-    pinMode(IR_sensorL, INPUT);
+    pinMode(IR_sensorR, INPUT);
 
     // Set the output pins for pont-H
     pinMode(IN1, OUTPUT);
@@ -124,7 +124,7 @@ void loop() {
     int speedR = (int) speed_values;
     int speedL = (int)(speed_values + 1);
     if (DEBUG) {
-        Serial.print("R:");
+        Serial.print("R:");  
         Serial.print(speedR);
         Serial.print("  L:");
         Serial.print(speedL);
@@ -133,7 +133,7 @@ void loop() {
     motor_drive(speedR, speedL);
 
     //distance from the ultrasound to wall using ultrasound
-    float distance = distance_of_the_nearset_object_that_the_left();
+    float distance = distance_read_by_ultrasound();
     if (DEBUG) {
         Serial.print("distance:");
         Serial.print(distance);
@@ -159,6 +159,7 @@ void calibration_check() {
     float calibrationOn_maximum;
     float calibrationOn_minimum_total = 0;
     float calibrationOn_maximum_total = 0;
+    
     for (uint8_t i = 0; i < SensorCount; i++) {
         calibrationOn_minimum = qtr.calibrationOn.minimum[i];
         calibrationOn_minimum_total += calibrationOn_minimum;
@@ -205,7 +206,7 @@ void calibration_check() {
 
 }
 
-float * pid_calc(uint16_t qtr_position) {
+float *pid_calc(uint16_t qtr_position) {
     error = trageted_qtr_value - qtr_position;
 
     proportional = Kp * error;
@@ -254,7 +255,7 @@ void motor_drive(int Rspeed, int Lspeed) {
     }
 }
 
-float distance_of_the_nearset_object_that_the_left() { //using the ultrasound
+float distance_read_by_ultrasound() { //using the ultrasound
     digitalWrite(trig, HIGH);
     delayMicroseconds(10);
     digitalWrite(trig, LOW);
@@ -267,10 +268,7 @@ float distance_of_the_nearset_object_that_the_left() { //using the ultrasound
 int * IR_sensors_readings() {
     int valR = analogRead(IR_sensorR);
     int valL = analogRead(IR_sensorL);
-    int values[] = {
-        valR,
-        valL
-    };
+    int values[] = {valR,valL};
 
     if (DEBUG) {
         Serial.print("R:");
