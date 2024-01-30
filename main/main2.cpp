@@ -1,5 +1,4 @@
 #include <Arduino.h>
-
 #include <QTRSensors.h>
 
 // tcrt5000 IR_sensor
@@ -7,19 +6,9 @@
 #define IR_sensorL A1
 // QTR
 QTRSensors qtr;
-const uint8_t SensorCount =
-  8; // uint8_t stands for "unsigned integer with 8 bits.
+const uint8_t SensorCount = 8;  // uint8_t stands for "unsigned integer with 8 bits.
 uint16_t sensorValues[SensorCount];
-const uint8_t pins[] = {
-  3,
-  4,
-  5,
-  12,
-  7,
-  8,
-  A3,
-  A4
-};
+const uint8_t pins[] = {3, 4, 5, 12, 7, 8, A3, A4};
 // QTR calibration test values
 const float maximum_calibration_required = 990;
 const float minimum_calibration_required = 10;
@@ -27,6 +16,8 @@ const float minimum_calibration_required = 10;
 // ultrasound
 #define trig 13
 #define echo A2
+const int distance_left = 10;
+const int distance_right = 20;
 
 // motors
 #define RMF 6
@@ -35,20 +26,14 @@ const float minimum_calibration_required = 10;
 #define LMB 10
 
 // speeds
-const int base_speed = 255;
+int base_speed = 255;
 
-int turn_counter = 2;
-const uint8_t Truns_R[] = {
-  2,
-  3,
-  5
-};
-const uint8_t Truns_L[] = {
-  1,
-  4
-};
 
-int button = 3; // to be pressed to find set point
+int turn_counter = 12;
+const uint8_t Truns_R[] = {2, 3, 5};
+const uint8_t Truns_L[] = {1, 4};
+
+int button = 3;  // to be pressed to find set point
 
 float p;
 float i;
@@ -72,7 +57,8 @@ void motorsforword();
 void breakmotors();
 
 unsigned long previousMillis = 0;
-const long interval = 2000;
+const long interval = 400;
+const long interval_for_ultrasound = 20;
 int hasturned = 1;
 int start_ = 1;
 // Define threshold values for IR sensors
@@ -83,10 +69,10 @@ int allSensorsDetectWhite() {
   int IR_R = digitalRead(IR_sensorR);
   qtr.readLineBlack(sensorValues);
   return (IR_L == 0) && (sensorValues[0] < IR_THRESHOLD) &&
-    (sensorValues[1] < IR_THRESHOLD) && (sensorValues[2] < IR_THRESHOLD) &&
-    (sensorValues[3] < IR_THRESHOLD) && (sensorValues[4] < IR_THRESHOLD) &&
-    (sensorValues[5] < IR_THRESHOLD) && (sensorValues[6] < IR_THRESHOLD) &&
-    (sensorValues[7] < IR_THRESHOLD) && (IR_R == 0);
+         (sensorValues[1] < IR_THRESHOLD) && (sensorValues[2] < IR_THRESHOLD) &&
+         (sensorValues[3] < IR_THRESHOLD) && (sensorValues[4] < IR_THRESHOLD) &&
+         (sensorValues[5] < IR_THRESHOLD) && (sensorValues[6] < IR_THRESHOLD) &&
+         (sensorValues[7] < IR_THRESHOLD) && (IR_R == 0);
 }
 
 int isLeftTurn() {
@@ -103,7 +89,7 @@ int isRightTurn() {
   return (IR_R == 1) && (sensorValues[7] > IR_THRESHOLD) && (IR_L == 0);
 }
 
-int QTRSensorValue(int a) { // return 1 if detects black else 0
+int QTRSensorValue(int a) {  // return 1 if detects black else 0
   qtr.readLineBlack(sensorValues);
   return sensorValues[a] > IR_THRESHOLD;
 }
@@ -123,10 +109,10 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(9600);
 
-  // configure the sensors QTR
-  qtr.setTypeRC();
-  qtr.setSensorPins(pins, SensorCount);
-  calibration();
+  // // configure the sensors QTR ###############################################################################################
+  // qtr.setTypeRC();
+  // qtr.setSensorPins(pins, SensorCount);
+  // calibration();
 
   // ultrasound
   pinMode(trig, OUTPUT);
@@ -144,102 +130,113 @@ void setup() {
 
   // button
   pinMode(A5, INPUT_PULLUP);
-  while (digitalRead(A5) != 0) {}
+  while (digitalRead(A5) != 0) {
+  }
 }
 
 void loop() {
-  int position = pid_calc();
-  if (!digitalRead(IR_sensorL) && !digitalRead(IR_sensorR)) {
-    start_ = 0;
-  }
-
-  unsigned long currentMillis = millis();
-
-  int lt = isLeftTurn();
-  int rt = isRightTurn();
-
-  if ((lt ^ rt) && (position > 2000 && position < 5000) && !start_) {
-    if (currentMillis - previousMillis >= interval) {
-      turn_counter++;
-      previousMillis = currentMillis;
-      hasturned = 0;
+  if (turn_counter != 12) {
+    int position = pid_calc();
+    if (!digitalRead(IR_sensorL) && !digitalRead(IR_sensorR)) {
+      start_ = 0;
     }
 
-    // Handle left turn
-    if (hasturned == 0 && (turn_counter == 3 || turn_counter == 4 ||
-        turn_counter == 8 || turn_counter == 10)) {
-      hasturned == 1;
-      turnleft();
-      delay(125);
+    unsigned long currentMillis = millis();
 
-      if (turn_counter == 8) {
-        while (!(digitalRead(IR_sensorL) && QTRSensorValue(7))) {}
-      } else if (turn_counter == 10) {
-        while (!(digitalRead(IR_sensorL) && !QTRSensorValue(7))) {}
-      } else {
-        while (sensorValues[7] > IR_THRESHOLD && !digitalRead(IR_sensorL)) {
-          qtr.readLineBlack(sensorValues);
+    int lt = isLeftTurn();
+    int rt = isRightTurn();
+
+    if ((lt ^ rt) && (position > 2000 && position < 5000) && !start_) {
+      if (currentMillis - previousMillis >= interval) {
+        turn_counter++;
+        previousMillis = currentMillis;
+        hasturned = 0;
+      }
+
+      // Handle left turn
+      if (hasturned == 0 && (turn_counter == 3 || turn_counter == 4 ||
+                             turn_counter == 8 || turn_counter == 10)) {
+        hasturned == 1;
+        turnleft();
+        delay(100);
+
+        if (turn_counter == 8) {
+          delay(150);
+          while (
+              !(!digitalRead(IR_sensorL) && sensorValues[7] > IR_THRESHOLD)) {
+            qtr.readLineBlack(sensorValues);
+          }
+        } else if (turn_counter == 10) {
+          delay(150);
+          while (
+              !(!digitalRead(IR_sensorL) && sensorValues[7] > IR_THRESHOLD)) {
+            qtr.readLineBlack(sensorValues);
+          }
+        } else {
+          while (
+              !(sensorValues[7] > IR_THRESHOLD && !digitalRead(IR_sensorL))) {
+            qtr.readLineBlack(sensorValues);
+          }
         }
+
+        currentMillis += interval;  // rest time for next turn
+      }
+      // Handle right turn
+      if (hasturned == 0 && (turn_counter == 5 || turn_counter == 6 ||
+                             turn_counter == 9 || turn_counter == 12)) {
+        hasturned == 1;
+        turnright();
+        delay(100);
+
+        if (turn_counter == 9) {
+          while (digitalRead(IR_sensorL)) {
+          }
+          turnright();
+          while (!(digitalRead(IR_sensorL) && sensorValues[0] < IR_THRESHOLD)) {
+            qtr.readLineBlack(sensorValues);
+          }
+        } else {
+          while (
+              !(sensorValues[0] > IR_THRESHOLD && !digitalRead(IR_sensorR))) {
+            qtr.readLineBlack(sensorValues);
+          }
+        }
+
+        currentMillis += interval;  // rest time for next turn
       }
     }
-    breakmotors();
-    delay(2500);
 
-    currentMillis += interval; // rest time for next turn
-  }
-  // Handle right turn
-  if (hasturned == 0 && (turn_counter == 5 || turn_counter == 6 ||
-      turn_counter == 9 || turn_counter == 12)) {
-    hasturned == 1;
-    turnright();
-    delay(125);
+  } else {
+    base_speed = 200;
+    int d = distance();
 
-    if (turn_counter == 9) {
-      while (!(!QTRSensorValue(0) && !QTRSensorValue(7))) {}
-      breakmotors();
-      delay(2500);
-      turnright();
-      while (!(digitalRead(IR_sensorL) && !QTRSensorValue(0))) {}
-    } else {
-      while (sensorValues[0] > IR_THRESHOLD && !digitalRead(IR_sensorR)) {
-        qtr.readLineBlack(sensorValues);
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillis >= interval_for_ultrasound) {
+      if (d < distance_left) {
+        turnright();
+      } else if (d > distance_right) {
+        turnleft();
       }
+    } 
+    if (d >= 7 && d <= 14) {
+      previousMillis = currentMillis;
+      motorsforword();
     }
-    breakmotors();
-    delay(2500);
+    delay(20);
 
-    currentMillis += interval; // rest time for next turn
-  }
-}
-
-// BACKUP
-////allSensorsDetectWhite()
-////
-
-if (turn_counter == 11) {
-  rt = digitalRead(IR_sensorR) && QTRSensorValue(5) && QTRSensorValue(6) &&
-    QTRSensorValue(7) && !digitalRead(IR_sensorL);
-
-  if (rt) {
-    turnright();
-    while (!QTRSensorValue(1)) {}
-    breakmotors();
-    delay(2500);
-  }
-}
 }
 
 void calibration() {
   delay(500);
   digitalWrite(
-    LED_BUILTIN,
-    HIGH); // turn on Arduino's LED to indicate we are in calibration mode
+      LED_BUILTIN,
+      HIGH);  // turn on Arduino's LED to indicate we are in calibration mode
 
-  for (uint16_t i = 0; i < 300; i++) {
+  for (uint16_t i = 0; i < 200; i++) {
     qtr.calibrate();
   }
-  digitalWrite(LED_BUILTIN, LOW); // turn off Arduino's LED to indicate we are
-  // through with calibration
+  digitalWrite(LED_BUILTIN, LOW);  // turn off Arduino's LED to indicate we are
+                                   // through with calibration
 }
 
 int pid_calc() {
