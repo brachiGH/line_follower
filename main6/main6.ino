@@ -187,8 +187,9 @@ void loop() {
             previousMillis = currentMillis;
           }
         turnleft();
-          delay(150);
+          delay(175);
           while (!(!digitalRead(IR_sensorL) && sensorValues[6] < IR_THRESHOLD && sensorValues[7] < IR_THRESHOLD)) {
+            previousMillis = currentMillis;
             qtr.readLineBlack(sensorValues);
           }
         } else {
